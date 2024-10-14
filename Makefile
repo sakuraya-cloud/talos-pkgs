@@ -85,6 +85,10 @@ TARGETS += zfs-pkg
 NONFREE_TARGETS = nonfree-kmod-nvidia-lts-pkg
 NONFREE_TARGETS += nonfree-kmod-nvidia-production-pkg
 
+TARGETS += px4_drv-pkg
+TARGETS += dddvb-pkg
+
+
 # help menu
 
 export define HELP_MENU_HEADER

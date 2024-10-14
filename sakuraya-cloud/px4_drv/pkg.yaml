@@ -1,0 +1,42 @@
+name: px4_drv-pkg
+variant: scratch
+shell: /toolchain/bin/bash
+dependencies:
+  - stage: kernel-build
+steps:
+  - sources:
+      - url: https://github.com/tsukumijima/px4_drv/archive/refs/tags/v0.5.1.tar.gz
+        destination: px4_drv.tar.gz
+        sha256: d498cc6a190faa32b05120dc84d666e5710b63eee02dbbdedca88012a93fe00f
+        sha512: 8522b78101b0cab792a47399193482b6fbc29d5889d2f2106e16f330f2088a12f7723f1874e81d50b48e4d9e645c033dc67cb014d38df6297c7020c69a1c776a
+    prepare:
+      - |
+        tar -xzf px4_drv.tar.gz --strip-components=1 
+    build:
+      - |
+        cd driver
+        make KDIR=/src
+        /src/scripts/sign-file sha512 /src/certs/signing_key.pem /src/certs/signing_key.x509 px4_drv.ko
+    install:
+      - |
+        mkdir -p /rootfs/lib/modules/$(cat /src/include/config/kernel.release)/
+        cp /src/modules.order /rootfs/lib/modules/$(cat /src/include/config/kernel.release)/
+        cp /src/modules.builtin /rootfs/lib/modules/$(cat /src/include/config/kernel.release)/
+        cp /src/modules.builtin.modinfo /rootfs/lib/modules/$(cat /src/include/config/kernel.release)/
+
+        mkdir /rootfs/lib/modules/$(cat /src/include/config/kernel.release)/extras/
+        cp driver/px4_drv.ko /rootfs/lib/modules/$(cat /src/include/config/kernel.release)/extras/
+        make -j $(nproc) -C /src M="$(pwd)/driver" modules_install DESTDIR=/rootfs INSTALL_MOD_PATH=/rootfs INSTALL_MOD_DIR=extras INSTALL_MOD_STRIP=1 CONFIG_MODULE_SIG_ALL=y
+
+        mkdir -p /rootfs/lib/firmware/
+        cp ./etc/it930x-firmware.bin /rootfs/lib/firmware/
+        mkdir -p /rootfs/etc/udev/rules.d/
+        install -D -v -m 644 etc/99-px4video.rules /rootfs/etc/udev/rules.d/99-px4video.rules
+
+    test:
+      - |
+        # https://www.kernel.org/doc/html/v4.15/admin-guide/module-signing.html#signed-modules-and-stripping
+        find /rootfs/lib/modules -name '*.ko' -exec grep -FL '~Module signature appended~' {} \+
+finalize:
+  - from: /rootfs
+    to: /

@@ -1,0 +1,28 @@
+name: dddvb-pkg
+variant: scratch
+shell: /toolchain/bin/bash
+dependencies:
+  - stage: kernel-build
+steps:
+  - sources:
+      - url: https://github.com/DigitalDevices/dddvb/archive/refs/tags/0.9.39.tar.gz
+        destination: dddvb.tar.gz
+        sha256: 534ff660b22d02d5c9db85e603ff1d26c786c5e9cec26fb98c27eb8df619cdde
+        sha512: 99adb7c0db02b69eda0e08604a76f93e9da94d50ef45e24b74303a0afa1c4d070c11fc75b6f5eeb93ed0a9725adeab10176dd84badf9b9743584484af5f21817
+    prepare:
+      - |
+        tar -xzf dddvb.tar.gz --strip-components=1 
+    build:
+      - |
+        make KDIR=/src
+    install:
+      - |
+        mkdir -p /rootfs/lib/modules/$(cat /src/include/config/kernel.release)/
+        cp /src/modules.order /rootfs/lib/modules/$(cat /src/include/config/kernel.release)/
+        cp /src/modules.builtin /rootfs/lib/modules/$(cat /src/include/config/kernel.release)/
+        cp /src/modules.builtin.modinfo /rootfs/lib/modules/$(cat /src/include/config/kernel.release)/
+
+        make -j $(nproc) -C /src M="$(pwd)" modules_install DESTDIR=/rootfs INSTALL_MOD_PATH=/rootfs INSTALL_MOD_DIR=extras INSTALL_MOD_STRIP=1 CONFIG_MODULE_SIG_ALL=y
+finalize:
+  - from: /rootfs
+    to: /
